@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Workspace & Pacing Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+            background-color: #fbfbfa;
+            color: #37352f;
+        }
+        .notion-sidebar { background-color: #f7f7f5; }
+        .notion-card {
+            background: #ffffff;
+            border: 1px solid #e9e9e6;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+        }
+    </style>
+</head>
+<body class="flex h-screen overflow-hidden">
+
+    <div id="auth-overlay" class="fixed inset-0 bg-neutral-900/40 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-white rounded-2xl border border-[#e9e9e6] p-8 max-w-sm w-full mx-4 shadow-xl">
+            <div class="flex flex-col items-center mb-6">
+                <div class="w-12 h-12 bg-[#37352f] text-white flex items-center justify-center rounded-xl text-xl font-bold mb-3">U</div>
+                <h2 id="auth-title" class="text-xl font-bold text-[#37352f]">Sign in to Workspace</h2>
+                <p id="auth-subtitle" class="text-xs text-[#7c7b77] mt-1 text-center">Enter your details to sync your academic data.</p>
+            </div>
+            
+            <div class="space-y-3">
+                <div>
+                    <label class="text-[11px] font-semibold text-[#7c7b77] uppercase tracking-wider block mb-1">Email Address</label>
+                    <input type="email" id="auth-email" placeholder="name@university.com" class="w-full text-sm border border-[#e9e9e6] rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-neutral-400 bg-[#fbfbfa]">
+                </div>
+                <div>
+                    <label class="text-[11px] font-semibold text-[#7c7b77] uppercase tracking-wider block mb-1">Password</label>
+                    <input type="password" id="auth-password" placeholder="••••••••" class="w-full text-sm border border-[#e9e9e6] rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-neutral-400 bg-[#fbfbfa]">
+                </div>
+                <button id="auth-submit-btn" class="w-full bg-[#37352f] hover:bg-[#4a4943] text-white text-sm font-medium py-2 rounded-lg transition mt-2">Sign In</button>
+            </div>
+
+            <div class="mt-6 pt-4 border-t border-[#e9e9e6] text-center">
+                <button id="auth-toggle-mode" class="text-xs text-[#7c7b77] hover:text-[#37352f] underline">Don't have an account? Sign Up</button>
+            </div>
+        </div>
+    </div>
+
+    <aside class="w-64 notion-sidebar flex flex-col justify-between border-r border-[#e9e9e6] p-4 select-none">
+        <div>
+            <div class="flex items-center justify-between px-2 py-1.5 hover:bg-[#efefe1] rounded-lg cursor-pointer transition mb-6">
+                <div class="flex items-center space-x-2">
+                    <div id="user-avatar" class="w-6 h-6 bg-[#37352f] text-white flex items-center justify-center rounded text-xs font-bold">U</div>
+                    <span id="user-display-email" class="font-medium text-sm text-[#37352f] truncate max-w-[140px]">Loading...</span>
+                </div>
+                <button id="logout-btn" class="text-[#7c7b77] hover:text-red-600 text-xs p-1" title="Log Out"><i class="fa-solid fa-right-from-bracket"></i></button>
+            </div>
+
+            <nav class="space-y-1">
+                <div id="nav-dashboard" class="flex items-center justify-between px-2 py-1.5 rounded-lg text-sm font-medium text-[#37352f] hover:bg-[#efefe1] cursor-pointer transition bg-[#efefe1]">
+                    <div class="flex items-center space-x-2.5">
+                        <i class="fa-solid fa-house text-[#7c7b77] text-xs"></i>
+                        <span>Dashboard</span>
+                    </div>
+                </div>
+            </nav>
+
+            <div class="mt-8 px-2 mb-2 text-xs font-semibold text-[#7c7b77] uppercase tracking-wider flex justify-between items-center">
+                <span>My Courses</span>
+                <button id="add-course-btn" class="hover:bg-[#efefe1] p-1 rounded transition text-sm"><i class="fa-solid fa-plus"></i></button>
+            </div>
+            <ul id="sidebar-course-list" class="space-y-0.5"></ul>
+        </div>
+
+        <div class="text-xs text-[#9b9a97] px-2 border-t border-[#e9e9e6] pt-4">
+            <p id="cloud-status"><i class="fa-solid fa-cloud text-emerald-500 mr-1"></i> Synced to Cloud</p>
+        </div>
+    </aside>
+
+    <main class="flex-1 flex flex-col h-full overflow-y-auto bg-[#fbfbfa]">
+        <div id="course-cover-accent" class="h-16 w-full bg-neutral-200 transition-all duration-300"></div>
+
+        <header class="h-11 border-b border-[#e9e9e6] flex items-center px-6 justify-between select-none shrink-0 bg-white/50 backdrop-blur">
+            <div class="text-xs text-[#7c7b77] flex items-center space-x-2">
+                <span>Workspace</span>
+                <i class="fa-solid fa-chevron-right text-[10px]"></i>
+                <span class="text-[#37352f] font-medium" id="current-view-title">Dashboard</span>
+            </div>
+        </header>
+
+        <div class="max-w-4xl w-full mx-auto px-12 py-8 flex-1">
+            <div class="mb-6 relative">
+                <div class="flex justify-between items-start">
+                    <div>
+                        <div class="flex items-center space-x-3 mb-2">
+                            <span id="main-emoji" class="text-3xl cursor-pointer hover:bg-neutral-100 p-1 rounded transition">🎓</span>
+                            <h1 id="main-title" class="text-4xl font-bold tracking-tight text-[#37352f]">Dashboard</h1>
+                        </div>
+                        <p id="main-subtitle" class="text-sm text-[#7c7b77]">Track your academic completion progress.</p>
+                    </div>
+                    <div id="customization-bar" class="hidden flex items-center space-x-2">
+                        <input type="date" id="course-deadline-picker" class="text-xs border border-[#e9e9e6] rounded px-2 py-1 bg-white text-[#37352f] outline-none">
+                        <select id="course-color-picker" class="text-xs border border-[#e9e9e6] rounded px-2 py-1 bg-white text-[#37352f] outline-none">
+                            <option value="bg-neutral-200">Default Gray</option>
+                            <option value="bg-blue-200">Blue Accent</option>
+                            <option value="bg-amber-200">Amber Accent</option>
+                            <option value="bg-rose-200">Rose Accent</option>
+                            <option value="bg-emerald-200">Emerald Accent</option>
+                            <option value="bg-purple-200">Purple Accent</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mt-6 notion-card p-4 rounded-xl flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div class="flex-1">
+                        <div class="flex justify-between text-xs font-semibold text-[#37352f] mb-1.5">
+                            <span>Syllabus Completion</span>
+                            <span id="global-progress-percent">0%</span>
+                        </div>
+                        <div class="w-full bg-[#ecece9] h-2 rounded-full overflow-hidden">
+                            <div id="global-progress-bar" class="bg-emerald-600 h-full transition-all duration-500 ease-out" style="width: 0%"></div>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-6 shrink-0 justify-between">
+                        <div id="pacing-metrics-box" class="hidden text-left border-l border-[#e9e9e6] pl-6">
+                            <span id="pacing-velocity" class="text-lg font-bold text-[#37352f]">0</span>
+                            <p class="text-[10px] text-[#7c7b77] uppercase tracking-wide">Topics / Week Needed</p>
+                        </div>
+                        <div class="text-right">
+                            <span id="global-progress-fraction" class="text-2xl font-bold text-[#37352f]">0/0</span>
+                            <p class="text-[11px] text-[#7c7b77] uppercase tracking-wide">Tasks Completed</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="course-tabs" class="hidden flex space-x-4 border-b border-[#e9e9e6] mb-6 text-sm">
+                <button id="tab-syllabus" class="pb-2 border-b-2 border-[#37352f] font-medium text-[#37352f]">Syllabus Topics</button>
+                <button id="tab-assignments" class="pb-2 border-b-2 border-transparent text-[#7c7b77] hover:text-[#37352f]">Assignments & Projects</button>
+            </div>
+
+            <div id="dashboard-view" class="space-y-6">
+                <h2 class="text-lg font-semibold text-[#37352f]">Course Overview</h2>
+                <div id="dashboard-grid" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
+            </div>
+
+            <div id="course-detail-view" class="hidden space-y-4">
+                <div class="flex items-center space-x-2 bg-white border border-[#e9e9e6] rounded-lg px-3 py-2 focus-within:ring-1 focus-within:ring-neutral-400 transition">
+                    <i class="fa-solid fa-plus text-[#7c7b77] text-sm"></i>
+                    <input type="text" id="new-item-input" placeholder="Add something..." class="w-full text-sm outline-none bg-transparent">
+                    <button id="add-item-btn" class="text-xs bg-[#37352f] hover:bg-[#4a4943] text-white px-3 py-1.5 rounded font-medium transition shrink-0">Add</button>
+                </div>
+                <div class="notion-card rounded-xl overflow-hidden divide-y divide-[#e9e9e6]" id="item-list"></div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-auth.js";
+        import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        // ⚠️ PASTE YOUR FIREBASE WEB CONFIG CONFIGURATION BLOCK HERE
+        const firebaseConfig = {
+        apiKey: "AIzaSyAAaRDzilB8i3Qrrf9RJtl2hh3XMAsMA94",
+        authDomain: "uni-tracker-ee03d.firebaseapp.com",
+        projectId: "uni-tracker-ee03d",
+        storageBucket: "uni-tracker-ee03d.firebasestorage.app",
+        messagingSenderId: "802176098189",
+        appId: "1:802176098189:web:29410f3db4b99aab84e7c4",
+        measurementId: "G-955RP6JRWG"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        let courses = [];
+        let currentView = 'all'; // 'all' or course ID
+        let activeTab = 'syllabus'; // 'syllabus' or 'assignments'
+        let isSignUpMode = false;
+        let currentUser = null;
+
+        // --- AUTH ---
+        const handleAuth = async () => {
+            const email = document.getElementById('auth-email').value.trim();
+            const password = document.getElementById('auth-password').value;
+            const submitBtn = document.getElementById('auth-submit-btn');
+            if(!email || !password) return alert('Please enter login credentials.');
+            submitBtn.innerText = "Processing...";
+            try {
+                if (isSignUpMode) { await createUserWithEmailAndPassword(auth, email, password); }
+                else { await signInWithEmailAndPassword(auth, email, password); }
+            } catch (error) { alert(error.message); submitBtn.innerText = isSignUpMode ? "Sign Up" : "Sign In"; }
+        };
+
+        const toggleAuthMode = () => {
+            isSignUpMode = !isSignUpMode;
+            document.getElementById('auth-title').innerText = isSignUpMode ? "Create Account" : "Sign in to Workspace";
+            document.getElementById('auth-submit-btn').innerText = isSignUpMode ? "Sign Up" : "Sign In";
+            document.getElementById('auth-toggle-mode').innerText = isSignUpMode ? "Already have an account? Sign In" : "Don't have an account? Sign Up";
+        };
+
+        document.getElementById('auth-submit-btn').addEventListener('click', handleAuth);
+        document.getElementById('auth-toggle-mode').addEventListener('click', toggleAuthMode);
+        document.getElementById('logout-btn').addEventListener('click', () => signOut(auth));
+        document.getElementById('nav-dashboard').addEventListener('click', () => switchCourse('all'));
+        document.getElementById('add-course-btn').addEventListener('click', () => promptNewCourse());
+        document.getElementById('add-item-btn').addEventListener('click', () => addNewItem());
+
+        // Tab Switching bindings
+        document.getElementById('tab-syllabus').addEventListener('click', () => setTab('syllabus'));
+        document.getElementById('tab-assignments').addEventListener('click', () => setTab('assignments'));
+
+        // Customization Inputs Event Listeners
+        document.getElementById('course-color-picker').addEventListener('change', async (e) => {
+            const course = courses.find(c => c.id === currentView);
+            if (course) { course.color = e.target.value; updateAccentCover(); await saveCloudData(); renderDashboardGrid(); }
+        });
+
+        document.getElementById('course-deadline-picker').addEventListener('change', async (e) => {
+            const course = courses.find(c => c.id === currentView);
+            if (course) { course.deadline = e.target.value; renderMainContent(); await saveCloudData(); }
+        });
+
+        document.getElementById('main-emoji').addEventListener('click', async () => {
+            if (currentView === 'all') return;
+            const course = courses.find(c => c.id === currentView);
+            const emo = prompt("Enter a single custom emoji symbol:", course.emoji || "📄");
+            if (emo) { course.emoji = emo; document.getElementById('main-emoji').innerText = emo; await saveCloudData(); renderSidebar(); }
+        });
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                currentUser = user;
+                document.getElementById('auth-overlay').classList.add('hidden');
+                document.getElementById('user-display-email').innerText = user.email;
+                document.getElementById('user-avatar').innerText = user.email.charAt(0).toUpperCase();
+                await loadCloudData();
+            } else {
+                currentUser = null; courses = []; document.getElementById('auth-overlay').classList.remove('hidden');
+                renderSidebar(); renderMainContent();
+            }
+        });
+
+        // --- DATA SYNC ---
+        async function loadCloudData() {
+            document.getElementById('cloud-status').innerHTML = `<i class="fa-solid fa-spinner fa-spin text-amber-500 mr-1"></i> Syncing...`;
+            const docSnap = await getDoc(doc(db, "users", currentUser.uid));
+            if (docSnap.exists()) {
+                courses = docSnap.data().courses || [];
+            } else {
+                courses = [{ id: "1", name: "Sample Course Track", emoji: "📚", color: "bg-blue-200", deadline: "", topics: [], assignments: [] }];
+                await saveCloudData();
+            }
+            switchCourse('all');
+        }
+
+        async function saveCloudData() {
+            if (!currentUser) return;
+            try {
+                await setDoc(doc(db, "users", currentUser.uid), { courses: courses });
+                document.getElementById('cloud-status').innerHTML = `<i class="fa-solid fa-cloud text-emerald-500 mr-1"></i> Cloud Synced`;
+            } catch (e) { document.getElementById('cloud-status').innerHTML = `<i class="fa-solid fa-triangle-exclamation text-red-500 mr-1"></i> Sync Error`; }
+        }
+
+        // --- APPLICATION CONTROLLER VIEWS ---
+        function switchCourse(id) {
+            currentView = id;
+            activeTab = 'syllabus';
+            renderSidebar();
+            renderMainContent();
+        }
+
+        function setTab(tabName) {
+            activeTab = tabName;
+            document.getElementById('tab-syllabus').className = tabName === 'syllabus' ? "pb-2 border-b-2 border-[#37352f] font-medium text-[#37352f]" : "pb-2 border-b-2 border-transparent text-[#7c7b77] hover:text-[#37352f]";
+            document.getElementById('tab-assignments').className = tabName === 'assignments' ? "pb-2 border-b-2 border-[#37352f] font-medium text-[#37352f]" : "pb-2 border-b-2 border-transparent text-[#7c7b77] hover:text-[#37352f]";
+            
+            const itemInput = document.getElementById('new-item-input');
+            itemInput.placeholder = tabName === 'syllabus' ? "Add a new topic or lecture..." : "Add a new assignment deadline, project or homework milestone...";
+            
+            const course = courses.find(c => c.id === currentView);
+            if(course) renderItemList(course);
+        }
+
+        function updateAccentCover() {
+            const cover = document.getElementById('course-cover-accent');
+            if (currentView === 'all') {
+                cover.className = "h-16 w-full bg-neutral-800";
+            } else {
+                const course = courses.find(c => c.id === currentView);
+                cover.className = `h-16 w-full ${course?.color || 'bg-neutral-200'}`;
+            }
+        }
+
+        // --- RENDER PLATFORM ---
+        function renderSidebar() {
+            const list = document.getElementById('sidebar-course-list');
+            list.innerHTML = '';
+            courses.forEach(course => {
+                const li = document.createElement('li');
+                li.className = `flex items-center justify-between px-2 py-1.5 rounded-lg text-sm text-[#37352f] hover:bg-[#efefe1] cursor-pointer transition ${currentView === course.id ? 'bg-[#efefe1] font-medium' : ''}`;
+                li.addEventListener('click', () => switchCourse(course.id));
+                li.innerHTML = `<div class="flex items-center space-x-2 truncate"><span class="shrink-0">${course.emoji || '📄'}</span><span class="truncate">${course.name}</span></div>`;
+                list.appendChild(li);
+            });
+        }
+
+        function renderMainContent() {
+            updateAccentCover();
+            if (currentView === 'all') {
+                document.getElementById('dashboard-view').classList.remove('hidden');
+                document.getElementById('course-detail-view').classList.add('hidden');
+                document.getElementById('course-tabs').classList.add('hidden');
+                document.getElementById('customization-bar').classList.add('hidden');
+                document.getElementById('pacing-metrics-box').classList.add('hidden');
+                
+                document.getElementById('main-emoji').innerText = "🎓";
+                document.getElementById('main-title').innerText = 'Dashboard';
+                document.getElementById('current-view-title').innerText = 'Dashboard';
+                document.getElementById('main-subtitle').innerText = 'Track your academic completion progress.';
+                
+                // Calculate Global Aggregate Percentage Metrics
+                let total = 0, completed = 0;
+                courses.forEach(c => {
+                    total += c.topics.length + c.assignments.length;
+                    completed += c.topics.filter(t => t.completed).length + c.assignments.filter(a => a.completed).length;
+                });
+                const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
+                document.getElementById('global-progress-percent').innerText = `${percent}%`;
+                document.getElementById('global-progress-bar').style.width = `${percent}%`;
+                document.getElementById('global-progress-fraction').innerText = `${completed}/${total}`;
+                
+                renderDashboardGrid();
+            } else {
+                const course = courses.find(c => c.id === currentView);
+                if (!course) return switchCourse('all');
+
+                document.getElementById('dashboard-view').classList.add('hidden');
+                document.getElementById('course-detail-view').classList.remove('hidden');
+                document.getElementById('course-tabs').classList.remove('hidden');
+                document.getElementById('customization-bar').classList.remove('hidden');
+                
+                document.getElementById('main-emoji').innerText = course.emoji || "📄";
+                document.getElementById('main-title').innerText = course.name;
+                document.getElementById('current-view-title').innerText = course.name;
+                document.getElementById('main-subtitle').innerText = `Manage syllabus objectives and assignments for ${course.name}.`;
+                
+                document.getElementById('course-color-picker').value = course.color || 'bg-neutral-200';
+                document.getElementById('course-deadline-picker').value = course.deadline || '';
+
+                // Calculate Single Course Completion Ratios
+                const totalItems = course.topics.length;
+                const completedItems = course.topics.filter(t => t.completed).length;
+                const percent = totalItems > 0 ? Math.round((completedItems / totalItems) * 100) : 0;
+                
+                document.getElementById('global-progress-percent').innerText = `${percent}%`;
+                document.getElementById('global-progress-bar').style.width = `${percent}%`;
+                document.getElementById('global-progress-fraction').innerText = `${completedItems}/${totalItems}`;
+
+                // Calculate Pacing Velocity Metrics
+                const pacingBox = document.getElementById('pacing-metrics-box');
+                const velocityText = document.getElementById('pacing-velocity');
+                
+                if (course.deadline && totalItems > completedItems) {
+                    pacingBox.classList.remove('hidden');
+                    const weeksLeft = (new Date(course.deadline) - new Date()) / (1000 * 60 * 60 * 24 * 7);
+                    if (weeksLeft > 0) {
+                        const remainingTopics = totalItems - completedItems;
+                        const pace = (remainingTopics / weeksLeft).toFixed(1);
+                        velocityText.innerText = pace;
+                        velocityText.className = pace > 3 ? "text-lg font-bold text-amber-600 animate-pulse" : "text-lg font-bold text-[#37352f]";
+                    } else { velocityText.innerText = "Overdue"; velocityText.className="text-sm font-bold text-red-500"; }
+                } else { pacingBox.classList.add('hidden'); }
+
+                setTab(activeTab);
+            }
+        }
+
+        function renderDashboardGrid() {
+            const grid = document.getElementById('dashboard-grid');
+            grid.innerHTML = '';
+            courses.forEach(course => {
+                const totalTopics = course.topics.length;
+                const clearTopics = course.topics.filter(t => t.completed).length;
+                const openAssignments = course.assignments.filter(a => !a.completed).length;
+                const percent = totalTopics > 0 ? Math.round((clearTopics / totalTopics) * 100) : 0;
+                
+                const card = document.createElement('div');
+                card.className = "notion-card rounded-xl overflow-hidden hover:shadow-md cursor-pointer transition flex flex-col justify-between h-40";
+                card.addEventListener('click', () => switchCourse(course.id));
+                card.innerHTML = `
+                    <div class="h-3 w-full ${course.color || 'bg-neutral-200'}"></div>
+                    <div class="p-4 flex-1 flex flex-col justify-between">
+                        <div>
+                            <div class="flex items-start justify-between">
+                                <h3 class="font-bold text-sm text-[#37352f] truncate"><span class="mr-1">${course.emoji || '📄'}</span>${course.name}</h3>
+                                <button class="delete-course-btn text-[#9b9a97] hover:text-red-500 p-1 text-xs" data-id="${course.id}"><i class="fa-regular fa-trash-can"></i></button>
+                            </div>
+                            <div class="flex items-center space-x-3 text-[11px] text-[#7c7b77] mt-1">
+                                <span>${clearTopics}/${totalTopics} Modules</span>
+                                ${openAssignments > 0 ? `<span class="bg-amber-100 text-amber-800 px-1.5 py-0.5 rounded font-medium">${openAssignments} Open Assignments</span>` : `<span class="text-emerald-600 font-medium">0 Tasks left</span>`}
+                            </div>
+                        </div>
+                        <div class="w-full mt-2">
+                            <div class="w-full bg-[#ecece9] h-1 rounded-full overflow-hidden">
+                                <div class="bg-neutral-700 h-full" style="width: ${percent}%"></div>
+                            </div>
+                        </div>
+                    </div>`;
+                
+                card.querySelector('.delete-course-btn').addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    if (confirm("Delete course completely?")) {
+                        courses = courses.filter(c => c.id !== e.currentTarget.getAttribute('data-id'));
+                        await saveCloudData(); switchCourse('all');
+                    }
+                });
+                grid.appendChild(card);
+            });
+        }
+
+        function renderItemList(course) {
+            const container = document.getElementById('item-list');
+            const dataset = activeTab === 'syllabus' ? course.topics : course.assignments;
+            container.innerHTML = dataset.length === 0 ? `<div class="p-6 text-center text-sm text-[#9b9a97]">Empty dataset view. Add an entry above.</div>` : '';
+            
+            dataset.forEach(item => {
+                const row = document.createElement('div');
+                row.className = `flex items-center justify-between p-3.5 bg-white hover:bg-[#f7f7f5] transition group`;
+                row.innerHTML = `
+                    <div class="toggle-action-area flex items-center space-x-3 flex-1 cursor-pointer">
+                        <span class="text-base ${item.completed ? 'text-emerald-600' : 'text-[#d3d3cf]'}"><i class="${item.completed ? 'fa-solid fa-square-check' : 'fa-regular fa-square'}"></i></span>
+                        <span class="text-sm ${item.completed ? 'line-through text-[#9b9a97]' : 'text-[#37352f]'}">${item.name}</span>
+                    </div>
+                    <button class="delete-item-btn opacity-0 group-hover:opacity-100 text-[#9b9a97] hover:text-red-500 px-2 text-xs" data-id="${item.id}"><i class="fa-regular fa-trash-can"></i></button>`;
+                
+                row.querySelector('.toggle-action-area').addEventListener('click', async () => {
+                    item.completed = !item.completed; 
+                    await saveCloudData(); renderMainContent();
+                });
+
+                row.querySelector('.delete-item-btn').addEventListener('click', async (e) => {
+                    const targetId = e.currentTarget.getAttribute('data-id');
+                    if(activeTab === 'syllabus') course.topics = course.topics.filter(t => t.id !== targetId);
+                    else course.assignments = course.assignments.filter(a => a.id !== targetId);
+                    await saveCloudData(); renderMainContent();
+                });
+                container.appendChild(row);
+            });
+        }
+
+        // --- MUTATIONS ---
+        async function promptNewCourse() {
+            const name = prompt("Enter Course Name:");
+            if (!name || name.trim() === "") return;
+            const newId = Date.now().toString();
+            courses.push({ id: newId, name: name.trim(), emoji: "📄", color: "bg-neutral-200", deadline: "", topics: [], assignments: [] });
+            await saveCloudData(); switchCourse(newId);
+        }
+
+        async function addNewItem() {
+            const input = document.getElementById('new-item-input');
+            if (input.value.trim() === "" || currentView === 'all') return;
+            const course = courses.find(c => c.id === currentView);
+            if (course) {
+                const payload = { id: Date.now().toString(), name: input.value.trim(), completed: false };
+                if (activeTab === 'syllabus') course.topics.push(payload);
+                else course.assignments.push(payload);
+                input.value = '';
+                await saveCloudData(); renderMainContent();
+            }
+        }
+
+        document.getElementById('new-item-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') addNewItem(); });
+        window.switchCourse = switchCourse;
+    </script>
+</body>
+</html>
